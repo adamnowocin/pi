@@ -147,11 +147,11 @@
     };
 
     element.template = function(data) {
-      var parsedTemplate = element.selectOne(el).innerHTML;
+      var html = element.selectOne(el).innerHTML;
       core.each(data, function(key, value) {
-        parsedTemplate = parsedTemplate.replace('{{' + key + '}}', value);
+        html = html.replace('{{' + key + '}}', value);
       });
-      return parsedTemplate;
+      return html;
     };
 
     element.parent = function() {
@@ -247,10 +247,10 @@
 
   core.http.uri = function(path, params) {
     var uri = '';
+    var parts = '';
     core.iterate(path, function(value) {
       uri += '/' + value;
     });
-    var parts = '';
     core.each(params, function(key, value) {
       parts += ('' === parts ? '?' : '&') + key + '=' + encodeURIComponent(value);
     });
@@ -260,12 +260,15 @@
   core.http.get = function(options) {
     request('GET', options);
   };
+
   core.http.post = function(options) {
     request('POST', options);
   };
+
   core.http.put = function(options) {
     request('PUT', options);
   };
+
   core.http.delete = function(options) {
     request('DELETE', options);
   };
@@ -313,13 +316,11 @@
   };
 
   core.emit = function(name, params) {
-    if (events[name]) {
-      core.iterate(events[name], function(cb) {
-        if (typeof cb === 'function') {
-          cb(params);
-        }
-      });
-    }
+    core.iterate(events[name], function(cb) {
+      if (typeof cb === 'function') {
+        cb(params);
+      }
+    });
   };
 
   core.addRoute = function(name, callback) {
@@ -419,13 +420,8 @@
     }
     var data = null;
     if (options.data) {
-      if (options.type === 'plain') {
-        data = options.data;
-      } else {
-        data = JSON.stringify(options.data);
-      }
+      data = 'plain' === options.type ? options.data : JSON.stringify(options.data);
     }
-
     var xhr = new XMLHttpRequest();
     xhr.open(method, options.url, true);
     if (!options.noCredentials) {
@@ -459,21 +455,17 @@
   }
 
   function setHeaders(xhr, headers) {
-    if (headers) {
-      core.each(headers, function(key, value) {
-        xhr.setRequestHeader(key, value);
-      })
-    }
+    core.each(headers, function(key, value) {
+      xhr.setRequestHeader(key, value);
+    })
   }
 
   function addDataEventListener(event) {
     var dataField = 'pi' + event.charAt(0).toUpperCase() + event.slice(1);
     document.addEventListener(event, function(ev) {
-      if (ev.target.dataset && ev.target.dataset[dataField]) {
-        if (handlers[ev.target.dataset[dataField]]) {
-          var context = pi(ev.target).parents('[data-pi-component]');
-          handlers[ev.target.dataset[dataField]](ev.target, context);
-        }
+      var dataset = ev.target.dataset;
+      if (dataset && dataset[dataField] && handlers[dataset[dataField]]) {
+        handlers[ev.target.dataset[dataField]](ev.target, pi(ev.target).parents('[data-pi-component]'));
       }
     });
   }
