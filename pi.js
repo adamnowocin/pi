@@ -478,8 +478,7 @@
     });
   }
 
-  [
-    'click', 'dblclick', 'mousedown', 'mouseup', 'mouseover', 'mousemove', 'mouseout', 'dragstart', 'drag', 'dragenter',
+  ['click', 'dblclick', 'mousedown', 'mouseup', 'mouseover', 'mousemove', 'mouseout', 'dragstart', 'drag', 'dragenter',
     'dragleave', 'dragover', 'drop', 'dragend', 'keydown', 'keypress', 'keyup', 'change'
   ].map(function(ev) {
     addDataEventListener(ev);
