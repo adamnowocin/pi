@@ -52,6 +52,22 @@
       });
     };
 
+    element.toggleClass = function(name) {
+      element.iterate(function(obj) {
+        obj.classList.toggle(name);
+      });
+    };
+
+    element.hasClass = function(name) {
+      var result = false;
+      core.iterate(obj.classList, function(className) {
+        if(className === name) {
+          result = true;
+        }
+      });
+      return result;
+    };
+
     element.css = function(key, value) {
       element.iterate(function(obj) {
         obj.style[key] = value;
