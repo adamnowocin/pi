@@ -61,7 +61,7 @@
     element.hasClass = function(name) {
       var result = false;
       core.iterate(obj.classList, function(className) {
-        if(className === name) {
+        if (className === name) {
           result = true;
         }
       });
@@ -188,30 +188,48 @@
       if (!options) {
         return;
       }
-      element.on('change', function() {
-        if (!this.files || !this.files[0]) {
+
+      element.on('change', function(e) {
+        sendFiles(e);
+      }, false);
+
+      if (options.dropzone) {
+        core(document).on('dragover', function(e) {
+          e.preventDefault();
+        }, false);
+        core(options.dropzone).on('drop', function(e) {
+          sendFiles(e);
+        }, false);
+      }
+
+      function sendFiles(e) {
+        e.preventDefault();
+        var files = e.target.files || e.dataTransfer.files;
+        if (!files || !files[0]) {
           return;
         }
-        if (typeof options.start === 'function') {
-          options.start(this.files[0]);
+        for (var i = 0, file; file = files[i]; i++) {
+          if (typeof options.start === 'function') {
+            options.start(file);
+          }
+          var xhr = new XMLHttpRequest();
+          if (xhr.upload) {
+            xhr.upload.onprogress = function(e) {
+              var done = e.position || e.loaded;
+              var total = e.totalSize || e.total;
+              if (typeof options.progress === 'function') {
+                options.progress(Math.floor(done / total * 1000) / 10);
+              }
+            };
+          }
+          xhr.open('post', options.url, true);
+          handleXhrResponse(xhr, options.success, options.error);
+          setHeaders(xhr, options.headers);
+          var formData = new FormData();
+          formData.append(options.field ? options.field : 'file', file);
+          xhr.send(formData);
         }
-        var xhr = new XMLHttpRequest();
-        if (xhr.upload) {
-          xhr.upload.onprogress = function(e) {
-            var done = e.position || e.loaded;
-            var total = e.totalSize || e.total;
-            if (typeof options.progress === 'function') {
-              options.progress(Math.floor(done / total * 1000) / 10);
-            }
-          };
-        }
-        xhr.open('post', options.url, true);
-        handleXhrResponse(xhr, options.success, options.error);
-        setHeaders(xhr, options.headers);
-        var formData = new FormData();
-        formData.append(options.field ? options.field : 'file', this.files[0]);
-        xhr.send(formData);
-      }, false);
+      }
     };
 
     function getContext() {
