@@ -1,4 +1,4 @@
-(function(global) {
+(function (global) {
 
   var core;
   var handlers = {};
@@ -8,59 +8,63 @@
   var addedFiles = {};
   var addedComponent = {};
 
-  core = function(el, context) {
+  core = function (el, context) {
 
     var element = {};
 
-    element.selectOne = function() {
+    element.selectOne = function () {
       return typeof el === 'string' ? getContext().querySelector(el) : el;
     };
 
-    element.select = function() {
+    element.select = function () {
       return typeof el === 'string' ? getContext().querySelectorAll(el) : [el];
     };
 
-    element.iterate = function(callback) {
-      core.iterate(element.select(el), function(obj) {
+    element.iterate = function (callback) {
+      core.iterate(element.select(el), function (obj) {
         if (typeof callback === 'function') {
           callback(obj);
         }
       });
     };
 
-    element.show = function() {
-      element.iterate(function(obj) {
+    element.show = function () {
+      element.iterate(function (obj) {
         obj.style.display = 'block';
       });
     };
 
-    element.hide = function() {
-      element.iterate(function(obj) {
+    element.hide = function () {
+      element.iterate(function (obj) {
         obj.style.display = 'none';
       });
     };
 
-    element.addClass = function(name) {
-      element.iterate(function(obj) {
+    element.addClass = function (name) {
+      element.iterate(function (obj) {
         obj.classList.add(name);
       });
     };
 
-    element.removeClass = function(name) {
-      element.iterate(function(obj) {
+    element.removeClass = function (name) {
+      element.iterate(function (obj) {
         obj.classList.remove(name);
       });
     };
 
-    element.toggleClass = function(name) {
-      element.iterate(function(obj) {
+    element.toggleClass = function (name) {
+      element.iterate(function (obj) {
         obj.classList.toggle(name);
       });
     };
 
-    element.hasClass = function(name) {
+    element.hasClass = function (name) {
       var result = false;
-      core.iterate(obj.classList, function(className) {
+      var obj = core.selectOne();
+      if (!obj) {
+        return false;
+      }
+      core.iterate(obj.classList, function (className) {
         if (className === name) {
           result = true;
         }
@@ -68,15 +72,15 @@
       return result;
     };
 
-    element.css = function(key, value) {
-      element.iterate(function(obj) {
+    element.css = function (key, value) {
+      element.iterate(function (obj) {
         obj.style[key] = value;
       });
     };
 
-    element.html = function(value) {
+    element.html = function (value) {
       if (value !== undefined) {
-        element.iterate(function(obj) {
+        element.iterate(function (obj) {
           obj.innerHTML = value;
         });
       } else {
@@ -85,27 +89,27 @@
       }
     };
 
-    element.append = function(value) {
-      element.iterate(function(obj) {
+    element.append = function (value) {
+      element.iterate(function (obj) {
         obj.innerHTML = obj.innerHTML + value;
       });
     };
 
-    element.prepend = function(value) {
-      element.iterate(function(obj) {
+    element.prepend = function (value) {
+      element.iterate(function (obj) {
         obj.innerHTML = value + obj.innerHTML;
       });
     };
 
-    element.remove = function() {
-      element.iterate(function(obj) {
+    element.remove = function () {
+      element.iterate(function (obj) {
         obj.remove();
       });
     };
 
-    element.val = function(value) {
+    element.val = function (value) {
       if (value !== undefined) {
-        element.iterate(function(obj) {
+        element.iterate(function (obj) {
           obj.value = value;
         });
       } else {
@@ -114,9 +118,9 @@
       }
     };
 
-    element.attr = function(key, value) {
+    element.attr = function (key, value) {
       if (value !== undefined) {
-        element.iterate(function(obj) {
+        element.iterate(function (obj) {
           obj.setAttribute(key, value);
         });
       } else {
@@ -125,9 +129,9 @@
       }
     };
 
-    element.data = function(key, value) {
+    element.data = function (key, value) {
       if (value !== undefined) {
-        element.iterate(function(obj) {
+        element.iterate(function (obj) {
           obj.dataset[key] = value;
         });
       } else {
@@ -140,41 +144,41 @@
       }
     };
 
-    element.removeAttr = function(key) {
-      element.iterate(function(obj) {
+    element.removeAttr = function (key) {
+      element.iterate(function (obj) {
         obj.removeAttribute(key);
       });
     };
 
-    element.on = function(event, callback) {
-      element.iterate(function(obj) {
+    element.on = function (event, callback) {
+      element.iterate(function (obj) {
         obj.addEventListener(event, callback);
       });
     };
 
-    element.off = function(event, callback) {
-      element.iterate(function(obj) {
+    element.off = function (event, callback) {
+      element.iterate(function (obj) {
         obj.removeEventListener(event, callback);
       });
     };
 
-    element.click = function(callback) {
+    element.click = function (callback) {
       element.on('click', callback);
     };
 
-    element.template = function(data) {
+    element.template = function (data) {
       var html = element.selectOne(el).innerHTML;
-      core.each(data, function(key, value) {
+      core.each(data, function (key, value) {
         html = html.replace('{{' + key + '}}', value);
       });
       return html;
     };
 
-    element.parent = function() {
+    element.parent = function () {
       return element.selectOne(el).parentElement;
     };
 
-    element.parents = function(match) {
+    element.parents = function (match) {
       var obj = element.selectOne(el);
       while (obj = obj.parentElement) {
         if (obj.matches ? obj.matches(match) : obj.msMatchesSelector(match)) {
@@ -184,20 +188,20 @@
       return null;
     };
 
-    element.upload = function(options) {
+    element.upload = function (options) {
       if (!options) {
         return;
       }
 
-      element.on('change', function(e) {
+      element.on('change', function (e) {
         sendFiles(e);
       }, false);
 
       if (options.dropzone) {
-        core(document).on('dragover', function(e) {
+        core(document).on('dragover', function (e) {
           e.preventDefault();
         }, false);
-        core(options.dropzone).on('drop', function(e) {
+        core(options.dropzone).on('drop', function (e) {
           sendFiles(e);
         }, false);
       }
@@ -214,7 +218,7 @@
           }
           var xhr = new XMLHttpRequest();
           if (xhr.upload) {
-            xhr.upload.onprogress = function(e) {
+            xhr.upload.onprogress = function (e) {
               var done = e.position || e.loaded;
               var total = e.totalSize || e.total;
               if (typeof options.progress === 'function') {
@@ -243,7 +247,7 @@
     return element;
   };
 
-  core.iterate = function(data, callback) {
+  core.iterate = function (data, callback) {
     if (!data || !data.length) {
       return;
     }
@@ -254,7 +258,7 @@
     }
   };
 
-  core.each = function(data, callback) {
+  core.each = function (data, callback) {
     if (!data) {
       return;
     }
@@ -265,12 +269,12 @@
     }
   };
 
-  core.trim = function(str) {
+  core.trim = function (str) {
     return str && typeof str === 'string' ? str.replace(/^\s+/, '').replace(/\s+$/, '') : '';
   };
 
-  core.token = function() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  core.token = function () {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       var r = (Math.random() * 16) | 0;
       var v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
@@ -279,36 +283,36 @@
 
   core.http = {};
 
-  core.http.uri = function(path, params) {
+  core.http.uri = function (path, params) {
     var uri = '';
     var parts = '';
-    core.iterate(path, function(value) {
+    core.iterate(path, function (value) {
       uri += '/' + value;
     });
-    core.each(params, function(key, value) {
+    core.each(params, function (key, value) {
       parts += ('' === parts ? '?' : '&') + key + '=' + encodeURIComponent(value);
     });
     return uri + parts;
   };
 
-  core.http.get = function(options) {
+  core.http.get = function (options) {
     request('GET', options);
   };
 
-  core.http.post = function(options) {
+  core.http.post = function (options) {
     request('POST', options);
   };
 
-  core.http.put = function(options) {
+  core.http.put = function (options) {
     request('PUT', options);
   };
 
-  core.http.delete = function(options) {
+  core.http.delete = function (options) {
     request('DELETE', options);
   };
 
-  core.ready = function(callback) {
-    document.addEventListener('DOMContentLoaded', function() {
+  core.ready = function (callback) {
+    document.addEventListener('DOMContentLoaded', function () {
       if (typeof callback === 'function') {
         callback();
       }
@@ -316,23 +320,23 @@
     });
   };
 
-  core.navigate = function(params) {
+  core.navigate = function (params) {
     document.location.hash = '#' + params.join('/');
   };
 
-  core.handle = function(name, callback) {
+  core.handle = function (name, callback) {
     if (name && typeof callback === 'function') {
       handlers[name] = callback;
     }
   };
 
-  core.runHandler = function(name, element, context) {
+  core.runHandler = function (name, element, context) {
     if (handlers[name]) {
       handlers[name](element, context);
     }
   };
 
-  core.subscribe = function(name, callback) {
+  core.subscribe = function (name, callback) {
     if (name && typeof callback === 'function') {
       if (!events[name]) {
         events[name] = [];
@@ -343,27 +347,27 @@
     return -1;
   };
 
-  core.unsubscribe = function(name, index) {
+  core.unsubscribe = function (name, index) {
     if (events[name] && events[name][index]) {
       events[name][index] = null;
     }
   };
 
-  core.emit = function(name, params) {
-    core.iterate(events[name], function(cb) {
+  core.emit = function (name, params) {
+    core.iterate(events[name], function (cb) {
       if (typeof cb === 'function') {
         cb(params);
       }
     });
   };
 
-  core.addRoute = function(name, callback) {
+  core.addRoute = function (name, callback) {
     if (name && typeof callback === 'function') {
       routes['#' + name] = callback;
     }
   };
 
-  core.load = function(root, path, error) {
+  core.load = function (root, path, error) {
     var template = path + '/component.html';
     if (cache[template]) {
       initComponentTemplate(root, path, cache[template]);
@@ -384,7 +388,7 @@
   function getComponent(root, path, error) {
     if (addedComponent[path] === 1) {
       var eventName = 'html.loaded:' + path;
-      var index = core.subscribe(eventName, function() {
+      var index = core.subscribe(eventName, function () {
         initComponentTemplate(root, path, cache[path + '/component.html']);
         initComponentData(root, path);
         core.unsubscribe(eventName, index);
@@ -400,13 +404,13 @@
     core.http.get({
       url: path + '/component.html',
       noCredentials: true,
-      success: function(res) {
+      success: function (res) {
         initComponentTemplate(root, path, res);
         core.emit('html.loaded:' + path);
         addedComponent[path] = 2;
         initComponentData(root, path);
       },
-      error: function(code, response) {
+      error: function (code, response) {
         if (typeof error === 'function') {
           error(code, response);
         }
@@ -422,7 +426,7 @@
   function initComponentData(root, path) {
     if (addedFiles[path] === 1) {
       var eventName = 'script.loaded:' + path;
-      var index = core.subscribe(eventName, function() {
+      var index = core.subscribe(eventName, function () {
         emitComponentInit(path, root);
         core.unsubscribe(eventName, index);
       });
@@ -434,7 +438,7 @@
     }
     addedFiles[path] = 1;
     var script = document.createElement('script');
-    script.onload = function() {
+    script.onload = function () {
       addedFiles[path] = 2;
       core.emit('script.loaded:' + path);
       emitComponentInit(path, root);
@@ -467,7 +471,7 @@
   }
 
   function handleXhrResponse(xhr, success, error) {
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
       if (xhr.readyState === XMLHttpRequest.DONE) {
         if (xhr.status >= 200 && xhr.status < 300) {
           var responseData;
@@ -489,14 +493,14 @@
   }
 
   function setHeaders(xhr, headers) {
-    core.each(headers, function(key, value) {
+    core.each(headers, function (key, value) {
       xhr.setRequestHeader(key, value);
     })
   }
 
   function addDataEventListener(event) {
     var dataField = 'pi' + event.charAt(0).toUpperCase() + event.slice(1);
-    document.addEventListener(event, function(ev) {
+    document.addEventListener(event, function (ev) {
       var dataset = ev.target.dataset;
       if (dataset && dataset[dataField] && handlers[dataset[dataField]]) {
         handlers[ev.target.dataset[dataField]](ev.target, pi(ev.target).parents('[data-pi-component]'));
@@ -506,7 +510,7 @@
 
   ['click', 'dblclick', 'mousedown', 'mouseup', 'mouseover', 'mousemove', 'mouseout', 'dragstart', 'drag', 'dragenter',
     'dragleave', 'dragover', 'drop', 'dragend', 'keydown', 'keypress', 'keyup', 'change'
-  ].map(function(ev) {
+  ].map(function (ev) {
     addDataEventListener(ev);
   });
 
