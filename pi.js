@@ -1,12 +1,8 @@
 (function (global) {
 
   var core;
-  var handlers = {};
-  var events = {};
-  var routes = {};
-  var cache = {};
-  var addedFiles = {};
-  var addedComponent = {};
+
+  // ---------------------- element --------------------
 
   core = function (el, context) {
 
@@ -70,6 +66,11 @@
         }
       });
       return result;
+    };
+
+    element.is = function (match) {
+      var obj = element.selectOne(el);
+      return obj.matches ? obj.matches(match) : obj.msMatchesSelector(match);
     };
 
     element.css = function (key, value) {
@@ -166,10 +167,10 @@
       element.on('click', callback);
     };
 
-    element.template = function (data) {
-      var html = element.selectOne(el).innerHTML;
+    element.template = function (data, sanitize) {
+      var html = element.html() || '';
       core.each(data, function (key, value) {
-        html = html.replace('{{' + key + '}}', value);
+        html = html.replace('{{' + key + '}}', sanitize ? encodeEntities(value) : value);
       });
       return html;
     };
@@ -230,6 +231,15 @@
           handleXhrResponse(xhr, options.success, options.error);
           setHeaders(xhr, options.headers);
           var formData = new FormData();
+          if (options.data && typeof options.data === 'function') {
+            core.each(options.data(), function (key, value) {
+              formData.append(key, value);
+            });
+          } else if (options.data) {
+            core.each(options.data, function (key, value) {
+              formData.append(key, value);
+            });
+          }
           formData.append(options.field ? options.field : 'file', file);
           xhr.send(formData);
         }
@@ -246,6 +256,8 @@
 
     return element;
   };
+
+  // ---------------------- tools --------------------
 
   core.iterate = function (data, callback) {
     if (!data || !data.length) {
@@ -273,6 +285,10 @@
     return str && typeof str === 'string' ? str.replace(/^\s+/, '').replace(/\s+$/, '') : '';
   };
 
+  core.sanitize = function (value) {
+    return encodeEntities(value);
+  };
+
   core.token = function () {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       var r = (Math.random() * 16) | 0;
@@ -281,34 +297,8 @@
     });
   };
 
-  core.http = {};
-
-  core.http.uri = function (path, params) {
-    var uri = '';
-    var parts = '';
-    core.iterate(path, function (value) {
-      uri += '/' + value;
-    });
-    core.each(params, function (key, value) {
-      parts += ('' === parts ? '?' : '&') + key + '=' + encodeURIComponent(value);
-    });
-    return uri + parts;
-  };
-
-  core.http.get = function (options) {
-    request('GET', options);
-  };
-
-  core.http.post = function (options) {
-    request('POST', options);
-  };
-
-  core.http.put = function (options) {
-    request('PUT', options);
-  };
-
-  core.http.delete = function (options) {
-    request('DELETE', options);
+  core.create = function (tagName) {
+    return document.createElement(tagName);
   };
 
   core.ready = function (callback) {
@@ -320,139 +310,79 @@
     });
   };
 
-  core.navigate = function (params) {
-    document.location.hash = '#' + params.join('/');
-  };
-
-  core.handle = function (name, callback) {
-    if (name && typeof callback === 'function') {
-      handlers[name] = callback;
-    }
-  };
-
-  core.runHandler = function (name, element, context) {
-    if (handlers[name]) {
-      handlers[name](element, context);
-    }
-  };
-
-  core.subscribe = function (name, callback) {
-    if (name && typeof callback === 'function') {
-      if (!events[name]) {
-        events[name] = [];
+  core.log = function (type, message, obj) {
+    if (global.console && typeof global.console[type] === 'function') {
+      if (obj) {
+        global.console[type](message, obj);
+      } else {
+        global.console[type](message);
       }
-      events[name].push(callback);
-      return events[name].length - 1;
-    }
-    return -1;
-  };
-
-  core.unsubscribe = function (name, index) {
-    if (events[name] && events[name][index]) {
-      events[name][index] = null;
     }
   };
 
-  core.emit = function (name, params) {
-    core.iterate(events[name], function (cb) {
-      if (typeof cb === 'function') {
-        cb(params);
-      }
+  function encodeEntities(value) {
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value !== 'string') {
+      core.log('warn', 'Wrong encode value: ', value);
+      return '';
+    }
+    return value.replace(/&/g, '&amp;').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function (value) {
+      var hi = value.charCodeAt(0);
+      var low = value.charCodeAt(1);
+      return '&#' + (((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000) + ';';
+    }).replace(/([^#-~ |!])/g, function (value) {
+      return '&#' + value.charCodeAt(0) + ';';
+    }).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ---------------------- storage --------------------
+
+  var storage = {};
+  core.storage = {};
+
+  core.storage.get = function (key) {
+    return typeof storage[key] !== 'undefined' ? storage[key] : null;
+  };
+
+  core.storage.set = function (key, value) {
+    storage[key] = value;
+  };
+
+  // ---------------------- http --------------------
+
+  core.httpClient = {};
+
+  core.httpClient.uri = function (path, params) {
+    var uri = '';
+    var parts = '';
+    core.iterate(path, function (value) {
+      uri += '/' + value;
     });
-  };
-
-  core.addRoute = function (name, callback) {
-    if (name && typeof callback === 'function') {
-      routes['#' + name] = callback;
-    }
-  };
-
-  core.load = function (root, path, error) {
-    var template = path + '/component.html';
-    if (cache[template]) {
-      initComponentTemplate(root, path, cache[template]);
-      emitComponentInit(path, root);
-      return;
-    }
-    getComponent(root, path, error);
-  };
-
-  function getComponentContext(root) {
-    return core('[data-pi-component="' + root + '"]').selectOne();
-  }
-
-  function emitComponentInit(path, root) {
-    core.runHandler('init:' + path, root, getComponentContext(root));
-  }
-
-  function getComponent(root, path, error) {
-    if (addedComponent[path] === 1) {
-      var eventName = 'html.loaded:' + path;
-      var index = core.subscribe(eventName, function () {
-        initComponentTemplate(root, path, cache[path + '/component.html']);
-        initComponentData(root, path);
-        core.unsubscribe(eventName, index);
-      });
-      return;
-    }
-    if (addedComponent[path] === 2) {
-      initComponentTemplate(root, path, cache[path + '/component.html']);
-      initComponentData(root, path);
-      return;
-    }
-    addedComponent[path] = 1;
-    core.http.get({
-      url: path + '/component.html',
-      noCredentials: true,
-      success: function (res) {
-        initComponentTemplate(root, path, res);
-        core.emit('html.loaded:' + path);
-        addedComponent[path] = 2;
-        initComponentData(root, path);
-      },
-      error: function (code, response) {
-        if (typeof error === 'function') {
-          error(code, response);
-        }
-      }
+    core.each(params, function (key, value) {
+      parts += ('' === parts ? '?' : '&') + key + '=' + encodeURIComponent(value);
     });
-  }
+    return uri + parts;
+  };
 
-  function initComponentTemplate(root, path, res) {
-    core(getComponentContext(root)).html(res);
-    cache[path + '/component.html'] = res;
-  }
+  core.httpClient.get = function (options) {
+    core.httpClient.request('GET', options);
+  };
 
-  function initComponentData(root, path) {
-    if (addedFiles[path] === 1) {
-      var eventName = 'script.loaded:' + path;
-      var index = core.subscribe(eventName, function () {
-        emitComponentInit(path, root);
-        core.unsubscribe(eventName, index);
-      });
-      return;
-    }
-    if (addedFiles[path] === 2) {
-      emitComponentInit(path, root);
-      return;
-    }
-    addedFiles[path] = 1;
-    var script = document.createElement('script');
-    script.onload = function () {
-      addedFiles[path] = 2;
-      core.emit('script.loaded:' + path);
-      emitComponentInit(path, root);
-    };
-    script.src = path + '/component.js';
-    document.body.appendChild(script);
-    var style = document.createElement('link');
-    style.rel = 'stylesheet';
-    style.type = 'text/css';
-    style.href = path + '/component.css';
-    document.body.appendChild(style);
-  }
+  core.httpClient.post = function (options) {
+    core.httpClient.request('POST', options);
+  };
 
-  function request(method, options) {
+  core.httpClient.put = function (options) {
+    core.httpClient.request('PUT', options);
+  };
+
+  core.httpClient.delete = function (options) {
+    core.httpClient.request('DELETE', options);
+  };
+
+  core.httpClient.request = function (method, options) {
     if (!options || !options.url || typeof options.url !== 'string') {
       return;
     }
@@ -468,7 +398,7 @@
     setHeaders(xhr, options.headers);
     handleXhrResponse(xhr, options.success, options.error);
     xhr.send(data);
-  }
+  };
 
   function handleXhrResponse(xhr, success, error) {
     xhr.onreadystatechange = function () {
@@ -498,21 +428,19 @@
     })
   }
 
-  function addDataEventListener(event) {
-    var dataField = 'pi' + event.charAt(0).toUpperCase() + event.slice(1);
-    document.addEventListener(event, function (ev) {
-      var dataset = ev.target.dataset;
-      if (dataset && dataset[dataField] && handlers[dataset[dataField]]) {
-        handlers[ev.target.dataset[dataField]](ev.target, pi(ev.target).parents('[data-pi-component]'));
-      }
-    });
-  }
+  // ---------------------- route --------------------
 
-  ['click', 'dblclick', 'mousedown', 'mouseup', 'mouseover', 'mousemove', 'mouseout', 'dragstart', 'drag', 'dragenter',
-    'dragleave', 'dragover', 'drop', 'dragend', 'keydown', 'keypress', 'keyup', 'change'
-  ].map(function (ev) {
-    addDataEventListener(ev);
-  });
+  var routes = {};
+
+  core.route = function (name, callback) {
+    if (name && typeof callback === 'function') {
+      routes['#' + name] = callback;
+    }
+  };
+
+  core.route.navigate = function (params) {
+    document.location.hash = '#' + params.join('/');
+  };
 
   function handleHashChange() {
     var parts = document.location.hash.split('/');
@@ -522,6 +450,232 @@
   }
 
   window.onhashchange = handleHashChange;
+
+  // ---------------------- events --------------------
+
+  var events = {};
+
+  core.subscribe = function (name, callback, overwrite) {
+    var index = -1;
+    if (name && typeof callback === 'function') {
+      if (!events[name] || overwrite) {
+        events[name] = [];
+      }
+      index = events[name].push(callback) - 1;
+    }
+    return index;
+  };
+
+  core.unsubscribe = function (name, index) {
+    if (events[name] && events[name][index]) {
+      events[name][index] = null;
+    }
+  };
+
+  core.emit = function (name, params) {
+    core.iterate(events[name], function (cb) {
+      if (typeof cb === 'function') {
+        cb(params);
+      }
+    });
+  };
+
+  // ---------------------- element event handler --------------------
+
+  var handlers = {};
+
+  core.handle = function (name, callback) {
+    if (name && typeof callback === 'function') {
+      handlers[name] = callback;
+    }
+  };
+
+  function addDataEventListener(event) {
+    var dataField = 'pi' + event.charAt(0).toUpperCase() + event.slice(1);
+    document.addEventListener(event, function (ev) {
+      var dataset = ev.target.dataset;
+      if (dataset && dataset[dataField] && handlers[dataset[dataField]]) {
+        handlers[dataset[dataField]](ev, ev.target, pi(ev.target).parents('[data-pi-component]'));
+      }
+    });
+  }
+
+  ['click', 'dblclick', 'mousedown', 'mouseup', 'mouseover', 'mousemove', 'mouseout', 'dragstart', 'drag', 'dragenter',
+    'dragleave', 'dragover', 'drop', 'dragend', 'keydown', 'keypress', 'keyup', 'change', 'contextmenu'
+  ].map(function (ev) {
+    addDataEventListener(ev);
+  });
+
+  // ---------------------- internal emmiter --------------------
+
+  var internalEvents = {};
+  var internalEmmiter = {};
+
+  internalEmmiter.subscribe = function (event, cb) {
+    if (!internalEvents[event]) {
+      internalEvents[event] = [];
+    }
+    if (typeof cb === 'function') {
+      internalEvents[event].push(cb);
+    }
+  };
+
+  internalEmmiter.emit = function (event, data) {
+    if (internalEvents[event]) {
+      core.iterate(internalEvents[event], function (cb) {
+        if (typeof cb === 'function') {
+          cb(data);
+        }
+      });
+      delete internalEvents[event];
+    }
+  };
+
+  // ---------------------- script loader --------------------
+
+  var loadedScriptsState = {};
+  core.loadJS = function (path, callback) {
+    internalEmmiter.subscribe('script-loaded:' + path, callback);
+    if (loadedScriptsState[path] === 1) {
+      return;
+    }
+    if (loadedScriptsState[path] === 2) {
+      internalEmmiter.emit('script-loaded:' + path);
+      return;
+    }
+    loadedScriptsState[path] = 1;
+    var script = document.createElement('script');
+    script.onload = function () {
+      loadedScriptsState[path] = 2;
+      internalEmmiter.emit('script-loaded:' + path);
+    };
+    script.src = path + '.js';
+    document.body.appendChild(script);
+  };
+
+  // ---------------------- css loader --------------------
+
+  var loadedCssFiles = {};
+  core.loadCSS = function (path) {
+    if (loadedCssFiles[path]) {
+      return;
+    }
+    loadedCssFiles[path] = true;
+    var style = document.createElement('link');
+    style.rel = 'stylesheet';
+    style.type = 'text/css';
+    style.href = path;
+    document.body.appendChild(style);
+  };
+
+  // ---------------------- template loader --------------------
+
+  var loadedTemplateState = {};
+  var templateCache = {};
+  core.loadHTML = function (path, callback, error) {
+    internalEmmiter.subscribe('template-loaded:' + path, callback);
+    if (loadedTemplateState[path] === 2) {
+      internalEmmiter.emit('template-loaded:' + path, templateCache[path]);
+      return;
+    }
+    if (loadedTemplateState[path] === 1) {
+      return;
+    }
+    loadedTemplateState[path] = 1;
+    core.httpClient.get({
+      url: path,
+      noCredentials: true,
+      success: function (res) {
+        templateCache[path] = res;
+        loadedTemplateState[path] = 2;
+        internalEmmiter.emit('template-loaded:' + path, templateCache[path]);
+      },
+      error: function (code, response) {
+        if (typeof error === 'function') {
+          error(code, response);
+        }
+      }
+    });
+  };
+
+  // ---------------------- framework --------------------
+
+  var services = {};
+  var components = {};
+
+  core.service = function (name, path, body) {
+    services[path] = { name: name, body: body };
+    internalEmmiter.emit('service-loaded:' + path);
+  };
+
+  core.component = function (options) {
+    if (!options || !options.path || !options.init || components[options.path]) {
+      core.log('error', 'Error while creating component - missing configuration');
+      return;
+    }
+    components[options.path] = options;
+    internalEmmiter.emit('component-loaded:' + options.path);
+  };
+
+  core.loadComponent = function (root, path) {
+    if (components[path]) {
+      initComponent(root, components[path]);
+    } else {
+      internalEmmiter.subscribe('component-loaded:' + path, function () {
+        initComponent(root, components[path]);
+      });
+      core.loadJS(path + '/component');
+    }
+  };
+
+  function initComponent(root, configuration) {
+    if (!root) {
+      core.log('error', 'Error while loading component - root can not be empty');
+      return;
+    }
+    if (!configuration) {
+      core.log('error', 'Error while loading "' + root + '" component - missing configuration');
+      return;
+    }
+    var imports = {};
+    var servicesLoaded = 0;
+    var servicesCount = configuration.import ? configuration.import.length : 0;
+    var templateReady = false;
+
+    function checkLoadState() {
+      if (servicesLoaded === servicesCount && templateReady) {
+        configuration.init(imports, core('[data-pi-component="' + root + '"]').selectOne());
+      }
+    }
+
+    if (servicesCount) {
+      core.iterate(configuration.import, function (path) {
+        if (services[path]) {
+          imports[services[path].name] = services[path].body;
+          servicesLoaded += 1;
+          checkLoadState();
+        } else {
+          internalEmmiter.subscribe('service-loaded:' + path, function () {
+            imports[services[path].name] = services[path].body;
+            servicesLoaded += 1;
+            checkLoadState();
+          });
+          core.loadJS(path);
+        }
+      });
+    }
+
+    core.loadCSS(configuration.path + '/' + configuration.styles);
+    core.loadHTML(configuration.path + '/' + configuration.templateUrl, function (html) {
+      var el = core('[data-pi-component="' + root + '"]').selectOne();
+      core('[data-pi-component="' + root + '"]').html(html);
+      templateReady = true;
+      checkLoadState();
+    });
+
+  }
+
+  // ----------------------------------------------------------------
 
   global.pi = core;
 
