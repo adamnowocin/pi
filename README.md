@@ -1,5 +1,5 @@
 # pi
-Javascript framework - work in progress
+Javascript framework - **work in progress**
 
 ## Usage
 
