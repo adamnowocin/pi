@@ -12,5 +12,4 @@ Add pi.js before your closing **body** tag
 
 ## License
 
-**pi** is licensed under the [MIT license](http://opensource.org/licenses/MIT).
-For the full license, see the `LICENSE` file.
+**pi** is licensed under the [MIT license](https://github.com/adamnowocin/pi/blob/master/LICENSE).
