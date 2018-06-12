@@ -604,7 +604,7 @@
   var components = {};
 
   core.service = function (name, path, body) {
-    services[path] = { name: name, body: body };
+    services[path] = {name: name, body: body};
     internalEmmiter.emit('service-loaded:' + path);
   };
 
@@ -667,7 +667,6 @@
 
     core.loadCSS(configuration.path + '/' + configuration.styles);
     core.loadHTML(configuration.path + '/' + configuration.templateUrl, function (html) {
-      var el = core('[data-pi-component="' + root + '"]').selectOne();
       core('[data-pi-component="' + root + '"]').html(html);
       templateReady = true;
       checkLoadState();
