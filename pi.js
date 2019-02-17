@@ -24,9 +24,9 @@
       });
     };
 
-    element.show = function () {
+    element.show = function (mode) {
       element.iterate(function (obj) {
-        obj.style.display = 'block';
+        obj.style.display = mode ? mode : 'block';
       });
     };
 
@@ -170,7 +170,7 @@
     element.template = function (data, sanitize) {
       var html = element.html() || '';
       core.each(data, function (key, value) {
-        html = html.replace('{{' + key + '}}', sanitize ? encodeEntities(value) : value);
+        html = html.replace(new RegExp('{{' + key + '}}', 'g'), sanitize ? encodeEntities(value) : value);
       });
       return html;
     };
@@ -419,7 +419,7 @@
           }
         }
       }
-    }
+    };
   }
 
   function setHeaders(xhr, headers) {
@@ -433,8 +433,8 @@
   var routes = {};
 
   core.route = function (name, callback) {
-    if (name && typeof callback === 'function') {
-      routes['#' + name] = callback;
+    if ((name || name === '') && typeof callback === 'function') {
+      routes[name] = callback;
     }
   };
 
@@ -442,11 +442,48 @@
     document.location.hash = '#' + params.join('/');
   };
 
-  function handleHashChange() {
-    var parts = document.location.hash.split('/');
-    if (routes[parts[0]]) {
-      routes[parts[0]](parts);
+  core.route.update = function (callback) {
+    if (!document.location.hash && typeof callback === 'function') {
+      callback();
+    } else {
+      handleHashChange();
     }
+  };
+
+  core.route.getParam = function (id) {
+    var param = null;
+    core.each(routes, function (item) {
+      if ((new RegExp(('^.?' + item + '$').replace(/#[a-z]+/, '[^/]+'))).test(document.location.hash)) {
+        var hashParts = document.location.hash.replace('#', '').split('/');
+        var itemParts = item.split('/');
+        var params = {};
+        core.iterate(itemParts, function (value, index) {
+          if (hashParts[index] !== value) {
+            params[value.replace('#', '')] = hashParts[index];
+          }
+        });
+        if(params[id]) {
+          param = params[id];
+        }
+      }
+    });
+    return param;
+  }
+
+  function handleHashChange() {
+    core.each(routes, function (item) {
+      if ((new RegExp(('^.?' + item + '$').replace(/#[a-z]+/, '[^/]+'))).test(document.location.hash)) {
+        var hashParts = document.location.hash.replace('#', '').split('/');
+        var itemParts = item.split('/');
+        var params = {};
+        core.iterate(itemParts, function (value, index) {
+          if (hashParts[index] !== value) {
+            params[value.replace('#', '')] = hashParts[index];
+          }
+        });
+        routes[item](params);
+      }
+    });
   }
 
   window.onhashchange = handleHashChange;
@@ -496,6 +533,11 @@
       var dataset = ev.target.dataset;
       if (dataset && dataset[dataField] && handlers[dataset[dataField]]) {
         handlers[dataset[dataField]](ev, ev.target, pi(ev.target).parents('[data-pi-component]'));
+      } else {
+        var parent = core(ev.target).parents('[data-pi-' + event + ']');
+        if (parent && parent.dataset && parent.dataset[dataField] && handlers[parent.dataset[dataField]]) {
+          handlers[parent.dataset[dataField]](ev, parent, pi(parent).parents('[data-pi-component]'));
+        }
       }
     });
   }
@@ -604,7 +646,7 @@
   var components = {};
 
   core.service = function (name, path, body) {
-    services[path] = {name: name, body: body};
+    services[path] = { name: name, body: body };
     internalEmmiter.emit('service-loaded:' + path);
   };
 
