@@ -468,7 +468,7 @@
       }
     });
     return param;
-  }
+  };
 
   function handleHashChange() {
     core.each(routes, function (item) {
