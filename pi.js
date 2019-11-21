@@ -181,7 +181,7 @@
 
     element.parents = function (match) {
       var obj = element.selectOne(el);
-      while (obj = obj.parentElement) {
+      while (!!(obj = obj.parentElement)) {
         if (obj.matches ? obj.matches(match) : obj.msMatchesSelector(match)) {
           return obj;
         }
@@ -213,7 +213,7 @@
         if (!files || !files[0]) {
           return;
         }
-        for (var i = 0, file; file = files[i]; i++) {
+        for (var i = 0, file; !!(file = files[i]); i++) {
           if (typeof options.start === 'function') {
             options.start(file);
           }
@@ -454,7 +454,7 @@
     var param = null;
     core.each(routes, function (item) {
       if ((new RegExp(('^.?' + item + '$').replace(/#[a-z]+/, '[^/]+'))).test(document.location.hash)) {
-        var hashParts = document.location.hash.replace('#', '').split('/');
+        var hashParts = getHashParts();
         var itemParts = item.split('/');
         var params = {};
         core.iterate(itemParts, function (value, index) {
@@ -470,10 +470,14 @@
     return param;
   };
 
+  function getHashParts() {
+    return document.location.hash.replace('#', '').split('/');
+  }
+
   function handleHashChange() {
     core.each(routes, function (item) {
       if ((new RegExp(('^.?' + item + '$').replace(/#[a-z]+/, '[^/]+'))).test(document.location.hash)) {
-        var hashParts = document.location.hash.replace('#', '').split('/');
+        var hashParts = getHashParts();
         var itemParts = item.split('/');
         var params = {};
         core.iterate(itemParts, function (value, index) {
@@ -548,12 +552,12 @@
     addDataEventListener(ev);
   });
 
-  // ---------------------- internal emmiter --------------------
+  // ---------------------- internal emitter --------------------
 
   var internalEvents = {};
-  var internalEmmiter = {};
+  var internalEmitter = {};
 
-  internalEmmiter.subscribe = function (event, cb) {
+  internalEmitter.subscribe = function (event, cb) {
     if (!internalEvents[event]) {
       internalEvents[event] = [];
     }
@@ -562,7 +566,7 @@
     }
   };
 
-  internalEmmiter.emit = function (event, data) {
+  internalEmitter.emit = function (event, data) {
     if (internalEvents[event]) {
       core.iterate(internalEvents[event], function (cb) {
         if (typeof cb === 'function') {
@@ -577,19 +581,19 @@
 
   var loadedScriptsState = {};
   core.loadJS = function (path, callback) {
-    internalEmmiter.subscribe('script-loaded:' + path, callback);
+    internalEmitter.subscribe('script-loaded:' + path, callback);
     if (loadedScriptsState[path] === 1) {
       return;
     }
     if (loadedScriptsState[path] === 2) {
-      internalEmmiter.emit('script-loaded:' + path);
+      internalEmitter.emit('script-loaded:' + path);
       return;
     }
     loadedScriptsState[path] = 1;
     var script = document.createElement('script');
     script.onload = function () {
       loadedScriptsState[path] = 2;
-      internalEmmiter.emit('script-loaded:' + path);
+      internalEmitter.emit('script-loaded:' + path);
     };
     script.src = path + '.js';
     document.body.appendChild(script);
@@ -615,9 +619,9 @@
   var loadedTemplateState = {};
   var templateCache = {};
   core.loadHTML = function (path, callback, error) {
-    internalEmmiter.subscribe('template-loaded:' + path, callback);
+    internalEmitter.subscribe('template-loaded:' + path, callback);
     if (loadedTemplateState[path] === 2) {
-      internalEmmiter.emit('template-loaded:' + path, templateCache[path]);
+      internalEmitter.emit('template-loaded:' + path, templateCache[path]);
       return;
     }
     if (loadedTemplateState[path] === 1) {
@@ -630,7 +634,7 @@
       success: function (res) {
         templateCache[path] = res;
         loadedTemplateState[path] = 2;
-        internalEmmiter.emit('template-loaded:' + path, templateCache[path]);
+        internalEmitter.emit('template-loaded:' + path, templateCache[path]);
       },
       error: function (code, response) {
         if (typeof error === 'function') {
@@ -647,7 +651,7 @@
 
   core.service = function (name, path, body) {
     services[path] = { name: name, body: body };
-    internalEmmiter.emit('service-loaded:' + path);
+    internalEmitter.emit('service-loaded:' + path);
   };
 
   core.component = function (options) {
@@ -656,14 +660,14 @@
       return;
     }
     components[options.path] = options;
-    internalEmmiter.emit('component-loaded:' + options.path);
+    internalEmitter.emit('component-loaded:' + options.path);
   };
 
   core.loadComponent = function (root, path) {
     if (components[path]) {
       initComponent(root, components[path]);
     } else {
-      internalEmmiter.subscribe('component-loaded:' + path, function () {
+      internalEmitter.subscribe('component-loaded:' + path, function () {
         initComponent(root, components[path]);
       });
       core.loadJS(path + '/component');
@@ -697,7 +701,7 @@
           servicesLoaded += 1;
           checkLoadState();
         } else {
-          internalEmmiter.subscribe('service-loaded:' + path, function () {
+          internalEmitter.subscribe('service-loaded:' + path, function () {
             imports[services[path].name] = services[path].body;
             servicesLoaded += 1;
             checkLoadState();
